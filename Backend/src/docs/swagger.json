@@ -1,0 +1,15 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bizcocho API 🍰",
+    "version": "1.0.0",
+    "description": "Documentación básica del backend de Bizcocho"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Servidor local"
+    }
+  ],
+  "paths": {}
+}

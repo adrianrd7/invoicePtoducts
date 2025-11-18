@@ -11,20 +11,68 @@ import {
   getUsersByRole,
   getActiveUsers
 } from '../controllers/userController.js';
+import { authenticate, checkPermission } from '../middleware/permissions.js';
 
 const router = express.Router();
 
-router.get('/', getUsers);                             
-router.get('/active', getActiveUsers);                  
-router.get('/role/:roleId', getUsersByRole);            
-router.get('/:id', getUserById);                      
-router.post('/', createUser);                           
-router.put('/:id', updateUser);                        
-router.delete('/:id', deleteUser);                      
+router.get('/', 
+  authenticate, 
+  checkPermission('users', 'view'),
+  getUsers
+);
 
-router.put('/:id/change-password', changePassword);     
-router.put('/:id/reset-password', resetPassword);       
+router.get('/active', 
+  authenticate, 
+  checkPermission('users', 'view'),
+  getActiveUsers
+);
 
-router.patch('/:id/toggle-status', toggleUserStatus);   
+router.get('/role/:roleId', 
+  authenticate, 
+  checkPermission('users', 'view'),
+  getUsersByRole
+);
+
+router.get('/:id', 
+  authenticate, 
+  checkPermission('users', 'view'),
+  getUserById
+);
+
+router.post('/', 
+  authenticate, 
+  checkPermission('users', 'create'),
+  createUser
+);
+
+router.put('/:id', 
+  authenticate, 
+  checkPermission('users', 'edit'),
+  updateUser
+);
+
+router.delete('/:id', 
+  authenticate, 
+  checkPermission('users', 'delete'),
+  deleteUser
+);
+
+router.put('/:id/change-password', 
+  authenticate, 
+  checkPermission('users', 'edit'),
+  changePassword
+);
+
+router.put('/:id/reset-password', 
+  authenticate, 
+  checkPermission('users', 'edit'),
+  resetPassword
+);
+
+router.patch('/:id/toggle-status', 
+  authenticate, 
+  checkPermission('users', 'edit'),
+  toggleUserStatus
+);
 
 export default router;

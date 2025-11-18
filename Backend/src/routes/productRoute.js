@@ -11,20 +11,68 @@ import {
   getProductStats,
   bulkUpdateStock
 } from '../controllers/productController.js';
+import { authenticate, checkPermission } from '../middleware/permissions.js';
 
 const router = express.Router();
 
-router.get('/stats', getProductStats);
-router.get('/low-stock', getLowStockProducts);
-router.post('/bulk-stock', bulkUpdateStock);
+router.get('/stats', 
+  authenticate, 
+  checkPermission('products', 'view'),
+  getProductStats
+);
 
-router.get('/', getProducts);
-router.get('/:id', getProductById);
-router.post('/', createProduct);
-router.put('/:id', updateProduct);
-router.delete('/:id', deleteProduct);
+router.get('/low-stock', 
+  authenticate, 
+  checkPermission('products', 'view'),
+  getLowStockProducts
+);
 
-router.patch('/:id/toggle-status', toggleProductStatus);
-router.patch('/:id/stock', updateStock);
+router.post('/bulk-stock', 
+  authenticate, 
+  checkPermission('products', 'edit'),
+  bulkUpdateStock
+);
+
+router.get('/', 
+  authenticate, 
+  checkPermission('products', 'view'),
+  getProducts
+);
+
+router.get('/:id', 
+  authenticate, 
+  checkPermission('products', 'view'),
+  getProductById
+);
+
+router.post('/', 
+  authenticate, 
+  checkPermission('products', 'create'),
+  createProduct
+);
+
+router.put('/:id', 
+  authenticate, 
+  checkPermission('products', 'edit'),
+  updateProduct
+);
+
+router.delete('/:id', 
+  authenticate, 
+  checkPermission('products', 'delete'),
+  deleteProduct
+);
+
+router.patch('/:id/toggle-status', 
+  authenticate, 
+  checkPermission('products', 'edit'),
+  toggleProductStatus
+);
+
+router.patch('/:id/stock', 
+  authenticate, 
+  checkPermission('products', 'edit'),
+  updateStock
+);
 
 export default router;

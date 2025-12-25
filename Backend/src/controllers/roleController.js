@@ -34,7 +34,6 @@ export const createRole = async (req, res) => {
   try {
     const { name, description, permissions } = req.body;
 
-    // Validar que el nombre sea requerido
     if (!name) {
       return res.status(400).json({ message: 'El nombre del rol es requerido' });
     }

@@ -1,5 +1,5 @@
 import Customer from '../../models/Customer.js';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 
 export const getCustomers = async (req, res) => {
   try {
@@ -10,6 +10,7 @@ export const getCustomers = async (req, res) => {
       search,
       identification_type 
     } = req.query;
+
     
     const offset = (page - 1) * limit;
     
@@ -41,6 +42,7 @@ export const getCustomers = async (req, res) => {
 
     const totalPages = Math.ceil(count / limit);
     const currentPage = parseInt(page);
+
 
     res.json({
       data: rows,
@@ -305,19 +307,29 @@ export const toggleCustomerStatus = async (req, res) => {
   }
 };
 
+
 export const getCustomerStats = async (req, res) => {
   try {
     const total = await Customer.count();
     const active = await Customer.count({ where: { active: true } });
     const inactive = await Customer.count({ where: { active: false } });
     
-    const byType = await Customer.findAll({
-      attributes: [
-        'identification_type',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-      ],
-      group: ['identification_type']
+    const customers = await Customer.findAll({
+      attributes: ['identification_type']
     });
+    
+      const byType = customers.reduce((acc, customer) => {
+      const type = customer.identification_type;
+      const existing = acc.find(item => item.identification_type === type);
+      
+      if (existing) {
+        existing.count++;
+      } else {
+        acc.push({ identification_type: type, count: 1 });
+      }
+      
+      return acc;
+    }, []);
 
     res.json({
       total,

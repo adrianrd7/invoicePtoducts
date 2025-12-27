@@ -5,6 +5,9 @@ import Customer from './Customer.js';
 import Product from './Product.js';
 import Invoice from './Invoice.js';
 import InvoiceDetail from './InvoiceDetail.js';
+import Unit from './Unit.js';
+import ProductUnit from './ProductUnit.js';
+import Promotion from './Promotion.js';
 
 const models = {
   Role,
@@ -14,6 +17,9 @@ const models = {
   Product,
   Invoice,
   InvoiceDetail,
+  Unit,
+  ProductUnit,
+  Promotion
 };
 
 Object.keys(models).forEach((modelName) => {
@@ -22,5 +28,17 @@ Object.keys(models).forEach((modelName) => {
   }
 });
 
-export { Role, Permission, User, Customer, Product, Invoice, InvoiceDetail };
+export { 
+  Role, 
+  Permission, 
+  User, 
+  Customer, 
+  Product, 
+  Invoice, 
+  InvoiceDetail,
+  Unit,           
+  ProductUnit,
+  Promotion     
+};
+
 export default models;

@@ -24,6 +24,9 @@ import CreateRole from './pages/Role/CreateRole';
 import UserList from './pages/User/UserList';
 import CreateUser from './pages/User/CreateUser';
 import EditUser from './pages/User/EditUser';
+import UnitList from './pages/Units/UnitList';
+import ProductUnits from './pages/ProductUnit/ProductUnits';
+import Promotions from './pages/Promotion/Promotions';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -143,6 +146,8 @@ function AppRoutes() {
           }
         />
 
+      
+
         <Route
           path="/users"
           element={
@@ -204,6 +209,40 @@ function AppRoutes() {
             <ProtectedRoute>
               <Layout>
                 <CreateRole />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+            <Route
+          path="/units"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <UnitList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+
+          <Route
+          path="/product-units"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ProductUnits />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+           <Route
+          path="/promotions"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Promotions />
               </Layout>
             </ProtectedRoute>
           }

@@ -15,7 +15,8 @@ import {
   Divider,
   Checkbox,
   Tooltip,
-  Spin
+  Spin,
+  Tag
 } from 'antd';
 import {
   DeleteOutlined,
@@ -29,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import invoiceService from '../../services/invoiceService';
 import customerService from '../../services/customerService';
 import productService from '../../services/productService';
+import unitService from '../../services/unitsService';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
@@ -42,8 +44,10 @@ const NewInvoice = () => {
   const [loading, setLoading] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [units, setUnits] = useState([]);
   const [invoiceDetails, setInvoiceDetails] = useState([]);
   const [applyTax, setApplyTax] = useState(true);
   const [calculations, setCalculations] = useState({
@@ -56,6 +60,7 @@ const NewInvoice = () => {
   useEffect(() => {
     loadCustomers();
     loadProducts();
+    loadUnits();
   }, []);
 
   useEffect(() => {
@@ -94,6 +99,18 @@ const NewInvoice = () => {
     }
   };
 
+  const loadUnits = async () => {
+    try {
+      setLoadingUnits(true);
+      const data = await unitService.getAll({ limit: 100, active: true }); 
+      setUnits(data.data || []);
+    } catch (error) {
+      message.error('Error al cargar unidades');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const handleCustomerSearch = (value) => {
     if (value) {
       loadCustomers(value);
@@ -108,6 +125,17 @@ const NewInvoice = () => {
     } else {
       loadProducts();
     }
+  };
+
+  const getProductUnits = (product) => {
+    if (!product.ProductUnits || product.ProductUnits.length === 0) {
+      return product.base_unit_id ? [{ unit_id: product.base_unit_id }] : [];
+    }
+    return product.ProductUnits;
+  };
+
+  const getUnitInfo = (unitId) => {
+    return units.find(u => u.id === unitId);
   };
 
   const handleAddProduct = (productId, quantity = 1) => {
@@ -129,15 +157,23 @@ const NewInvoice = () => {
       const newDetails = [...invoiceDetails];
       const newQuantity = newDetails[existingIndex].quantity + quantity;
       
-      if (product.stock < newQuantity) {
+      const conversionQuantity = newDetails[existingIndex].conversion_quantity || 1;
+      const quantityInBaseUnit = newQuantity * conversionQuantity;
+      
+      if (product.stock < quantityInBaseUnit) {
         message.error(`Stock insuficiente. Disponible: ${product.stock}`);
         return;
       }
       
       newDetails[existingIndex].quantity = newQuantity;
+      newDetails[existingIndex].quantity_base_unit = quantityInBaseUnit;
       newDetails[existingIndex] = calculateItemTotals(newDetails[existingIndex]);
       setInvoiceDetails(newDetails);
     } else {
+      const productUnits = getProductUnits(product);
+      const defaultUnitId = product.base_unit_id || (productUnits[0]?.unit_id);
+      const defaultUnit = getUnitInfo(defaultUnitId);
+
       const unitPrice = parseFloat(product.pvp);
       const taxAmount = applyTax ? unitPrice * TAX_RATE : 0;
       
@@ -146,7 +182,12 @@ const NewInvoice = () => {
         product_id: product.id,
         product_name: product.name,
         original_product_name: product.name,
+        unit_id: defaultUnitId,
+        unit_name: defaultUnit?.abbreviation || '',
+        available_units: productUnits,
         quantity: quantity,
+        quantity_base_unit: quantity,
+        conversion_quantity: 1,
         unit_price: unitPrice,
         tax_per_unit: taxAmount,
         item_discount: 0,
@@ -174,14 +215,70 @@ const NewInvoice = () => {
   const handleUpdateQuantity = (key, newQuantity) => {
     const newDetails = invoiceDetails.map(detail => {
       if (detail.key === key) {
-        if (newQuantity > detail.available_stock) {
-          message.error(`Stock insuficiente. Disponible: ${detail.available_stock}`);
-          return detail;
-        }
         if (newQuantity < 1) {
           return detail;
         }
-        const updated = { ...detail, quantity: newQuantity };
+        
+        const conversionQuantity = detail.conversion_quantity || 1;
+        const quantityInBaseUnit = newQuantity * conversionQuantity;
+        
+        if (quantityInBaseUnit > detail.available_stock) {
+          message.error(`Stock insuficiente. Disponible: ${detail.available_stock} unidades base`);
+          return detail;
+        }
+        
+        const updated = { 
+          ...detail, 
+          quantity: newQuantity,
+          quantity_base_unit: quantityInBaseUnit
+        };
+        return calculateItemTotals(updated);
+      }
+      return detail;
+    });
+    setInvoiceDetails(newDetails);
+  };
+
+  const handleUpdateUnit = (key, newUnitId) => {
+    const newDetails = invoiceDetails.map(detail => {
+      if (detail.key === key) {
+        const newUnit = getUnitInfo(newUnitId);
+        
+        const selectedProductUnit = detail.available_units?.find(
+          pu => pu.unit_id === newUnitId
+        );
+        
+        let newUnitPrice = detail.unit_price;
+        let conversionQuantity = 1;
+        
+        if (selectedProductUnit) {
+          if (selectedProductUnit.price_modifier) {
+            newUnitPrice = parseFloat(selectedProductUnit.price_modifier);
+          } else {
+            const product = products.find(p => p.id === detail.product_id);
+            if (product) {
+              const basePrice = parseFloat(product.pvp);
+              const quantity = parseFloat(selectedProductUnit.quantity || 1);
+              newUnitPrice = basePrice * quantity;
+            }
+          }
+          
+          conversionQuantity = parseFloat(selectedProductUnit.quantity || 1);
+        }
+        
+        const newTaxPerUnit = applyTax ? newUnitPrice * TAX_RATE : 0;
+        const quantityInBaseUnit = detail.quantity * conversionQuantity;
+        
+        const updated = {
+          ...detail,
+          unit_id: newUnitId,
+          unit_name: newUnit?.abbreviation || '',
+          unit_price: newUnitPrice,
+          tax_per_unit: newTaxPerUnit,
+          quantity_base_unit: quantityInBaseUnit,
+          conversion_quantity: conversionQuantity
+        };
+        
         return calculateItemTotals(updated);
       }
       return detail;
@@ -309,7 +406,12 @@ const NewInvoice = () => {
         details: invoiceDetails.map(detail => ({
           product_id: detail.product_id,
           product_name: detail.product_name,
-          quantity: detail.quantity
+          unit_id: detail.unit_id,
+          unit_name: detail.unit_name,
+          quantity: detail.quantity,
+          quantity_base_unit: detail.quantity_base_unit,
+          unit_price: detail.unit_price,
+          subtotal: detail.subtotal
         }))
       };
 
@@ -328,7 +430,7 @@ const NewInvoice = () => {
       title: 'Producto',
       dataIndex: 'product_name',
       key: 'product_name',
-      width: '20%',
+      width: '16%',
       render: (name, record) => (
         <Space direction="vertical" style={{ width: '100%' }}>
           {record.isEditingName ? (
@@ -369,10 +471,41 @@ const NewInvoice = () => {
       )
     },
     {
+      title: 'Unidad',
+      dataIndex: 'unit_id',
+      key: 'unit_id',
+      width: '9%',
+      render: (unitId, record) => {
+        const availableUnits = record.available_units || [];
+        
+        if (availableUnits.length <= 1) {
+          return <Tag color="blue">{record.unit_name}</Tag>;
+        }
+
+        return (
+          <Select
+            value={unitId}
+            onChange={(value) => handleUpdateUnit(record.key, value)}
+            style={{ width: '100%' }}
+            size="small"
+          >
+            {availableUnits.map(pu => {
+              const unit = getUnitInfo(pu.unit_id);
+              return unit ? (
+                <Option key={unit.id} value={unit.id}>
+                  {unit.abbreviation}
+                </Option>
+              ) : null;
+            })}
+          </Select>
+        );
+      }
+    },
+    {
       title: 'Precio Unit.',
       dataIndex: 'unit_price',
       key: 'unit_price',
-      width: '12%',
+      width: '10%',
       render: (price, record) => (
         <Space direction="vertical" style={{ width: '100%' }}>
           {record.isEditingPrice ? (
@@ -418,7 +551,7 @@ const NewInvoice = () => {
       title: 'IVA (15%)',
       dataIndex: 'tax_per_unit',
       key: 'tax_per_unit',
-      width: '12%',
+      width: '9%',
       render: (tax) => (
         <span style={{ color: applyTax ? '#1890ff' : '#d9d9d9' }}>
           ${parseFloat(tax).toFixed(2)}
@@ -429,11 +562,10 @@ const NewInvoice = () => {
       title: 'Cantidad',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: '10%',
+      width: '9%',
       render: (quantity, record) => (
         <InputNumber
           min={1}
-          max={record.available_stock}
           value={quantity}
           onChange={(value) => handleUpdateQuantity(record.key, value)}
           style={{ width: '100%' }}
@@ -441,10 +573,38 @@ const NewInvoice = () => {
       )
     },
     {
+      title: 'Stock a Descontar',
+      dataIndex: 'quantity_base_unit',
+      key: 'quantity_base_unit',
+      width: '10%',
+      render: (quantityBaseUnit, record) => {
+        const conversionQuantity = record.conversion_quantity || 1;
+        const willDeduct = quantityBaseUnit || (record.quantity * conversionQuantity);
+        
+        const isExceeding = willDeduct > record.available_stock;
+        
+        return (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Tag 
+              color={isExceeding ? 'error' : 'processing'}
+              style={{ width: '100%', textAlign: 'center' }}
+            >
+              {willDeduct.toFixed(2)} u
+            </Tag>
+            {conversionQuantity > 1 && (
+              <small style={{ color: '#888', fontSize: '11px' }}>
+                ({record.quantity} × {conversionQuantity})
+              </small>
+            )}
+          </Space>
+        );
+      }
+    },
+    {
       title: 'Descuento Item',
       dataIndex: 'item_discount',
       key: 'item_discount',
-      width: '13%',
+      width: '10%',
       render: (discount, record) => (
         <InputNumber
           min={0}
@@ -457,7 +617,7 @@ const NewInvoice = () => {
       )
     },
     {
-      title: 'Stock',
+      title: 'Stock Disp.',
       dataIndex: 'available_stock',
       key: 'available_stock',
       width: '8%',
@@ -471,7 +631,7 @@ const NewInvoice = () => {
       title: 'Subtotal',
       dataIndex: 'subtotal',
       key: 'subtotal',
-      width: '13%',
+      width: '10%',
       render: (subtotal) => (
         <strong style={{ color: '#52c41a' }}>
           ${parseFloat(subtotal).toFixed(2)}
@@ -481,7 +641,7 @@ const NewInvoice = () => {
     {
       title: 'Acción',
       key: 'action',
-      width: '7%',
+      width: '5%',
       render: (_, record) => (
         <Button
           type="text"
@@ -594,15 +754,19 @@ const NewInvoice = () => {
                 notFoundContent={loadingProducts ? <Spin size="small" /> : 'No hay productos'}
                 loading={loadingProducts}
               >
-                {products.map(product => (
-                  <Option 
-                    key={product.id} 
-                    value={product.id}
-                    disabled={product.stock === 0}
-                  >
-                    {product.name} - ${product.pvp} (Stock: {product.stock})
-                  </Option>
-                ))}
+                {products.map(product => {
+                  const baseUnit = getUnitInfo(product.base_unit_id);
+                  return (
+                    <Option 
+                      key={product.id} 
+                      value={product.id}
+                      disabled={product.stock === 0}
+                    >
+                      {product.name} - ${product.pvp} 
+                      {baseUnit && ` (${baseUnit.abbreviation})`} - Stock: {product.stock}
+                    </Option>
+                  );
+                })}
               </Select>
             </Col>
           </Row>
@@ -612,14 +776,14 @@ const NewInvoice = () => {
             dataSource={invoiceDetails}
             pagination={false}
             bordered
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1600 }}
             summary={() => (
               <Table.Summary fixed>
                 <Table.Summary.Row>
-                  <Table.Summary.Cell colSpan={6} align="right">
+                  <Table.Summary.Cell colSpan={8} align="right">
                     <strong>Subtotal:</strong>
                   </Table.Summary.Cell>
-                  <Table.Summary.Cell colSpan={2}>
+                  <Table.Summary.Cell colSpan={3}>
                     <strong>${calculations.subtotal}</strong>
                   </Table.Summary.Cell>
                 </Table.Summary.Row>

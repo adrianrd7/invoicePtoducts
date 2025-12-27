@@ -1,4 +1,6 @@
 import Product from '../../models/Product.js';
+import Unit from '../../models/Unit.js';
+import ProductUnit from '../../models/ProductUnit.js';
 import { Op } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -7,7 +9,8 @@ export const getProducts = async (req, res) => {
     const { 
       page = 1, 
       limit = 10, 
-      search
+      search,
+      active
     } = req.query;
     
     const offset = (page - 1) * limit;
@@ -18,10 +21,36 @@ export const getProducts = async (req, res) => {
       whereClause.name = { [Op.iLike]: `%${search}%` };
     }
 
+    if (active !== undefined) {
+      whereClause.active = active === 'true';
+    }
+
     const { count, rows } = await Product.findAndCountAll({ 
       where: whereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
+      include: [
+        {
+          model: Unit,
+          as: 'baseUnit',
+          attributes: ['id', 'name', 'abbreviation', 'type']
+        },
+        {
+          model: ProductUnit,
+          as: 'ProductUnits',
+          include: [
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'name', 'abbreviation', 'type']
+            }
+          ],
+          where: {
+            is_sales_unit: true
+          },
+          required: false
+        }
+      ],
       order: [['name', 'ASC']],
       distinct: true
     });
@@ -43,6 +72,7 @@ export const getProducts = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching products:', error);
     res.status(500).json({ 
       message: 'Error fetching products', 
       error: error.message 
@@ -55,7 +85,28 @@ export const getProductById = async (req, res) => {
     console.log("entro al get product by id")
     const { id } = req.params;
     console.log("ID:", id);
-    const product = await Product.findByPk(id);
+    
+    const product = await Product.findByPk(id, {
+      include: [
+        {
+          model: Unit,
+          as: 'baseUnit',
+          attributes: ['id', 'name', 'abbreviation', 'type']
+        },
+        {
+          model: ProductUnit,
+          as: 'ProductUnits',
+          include: [
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'name', 'abbreviation', 'type']
+            }
+          ]
+        }
+      ]
+    });
+    
     console.log("Producto encontrado:", product);
 
     if (!product) {
@@ -64,6 +115,7 @@ export const getProductById = async (req, res) => {
 
     res.json(product);
   } catch (error) {
+    console.error('Error fetching product:', error);
     res.status(500).json({ 
       message: 'Error fetching product', 
       error: error.message 
@@ -77,7 +129,8 @@ export const createProduct = async (req, res) => {
       name, 
       pvp, 
       weight, 
-      stock 
+      stock,
+      base_unit_id
     } = req.body;
 
     if (!name || pvp === undefined) {
@@ -104,14 +157,67 @@ export const createProduct = async (req, res) => {
       });
     }
 
+    let defaultUnitId = base_unit_id;
+    
+    if (!defaultUnitId) {
+      let defaultUnit = await Unit.findOne({ 
+        where: { 
+          abbreviation: 'u',
+          name: 'Unidad' 
+        } 
+      });
+      
+      if (!defaultUnit) {
+        defaultUnit = await Unit.create({
+          name: 'Unidad',
+          abbreviation: 'u',
+          type: 'unit',
+          active: true
+        });
+      }
+      
+      defaultUnitId = defaultUnit.id;
+    }
+
     const product = await Product.create({
       name,
       pvp,
       weight,
-      stock: stock || 0
+      stock: stock || 0,
+      base_unit_id: defaultUnitId
     });
 
-    res.status(201).json(product);
+    await ProductUnit.create({
+      product_id: product.id,
+      unit_id: defaultUnitId,
+      quantity: 1,
+      is_base_unit: true,
+      is_sales_unit: true,
+      is_purchase_unit: true
+    });
+
+    const productWithUnits = await Product.findByPk(product.id, {
+      include: [
+        {
+          model: Unit,
+          as: 'baseUnit',
+          attributes: ['id', 'name', 'abbreviation', 'type']
+        },
+        {
+          model: ProductUnit,
+          as: 'ProductUnits',
+          include: [
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'name', 'abbreviation', 'type']
+            }
+          ]
+        }
+      ]
+    });
+
+    res.status(201).json(productWithUnits);
   } catch (error) {
     res.status(500).json({ 
       message: 'Error creating product', 
@@ -128,7 +234,8 @@ export const updateProduct = async (req, res) => {
       pvp, 
       weight, 
       stock,
-      active 
+      active,
+      base_unit_id
     } = req.body;
 
     const product = await Product.findByPk(id);
@@ -160,10 +267,33 @@ export const updateProduct = async (req, res) => {
       pvp: pvp !== undefined ? pvp : product.pvp,
       weight: weight !== undefined ? weight : product.weight,
       stock: stock !== undefined ? stock : product.stock,
-      active: active !== undefined ? active : product.active
+      active: active !== undefined ? active : product.active,
+      base_unit_id: base_unit_id !== undefined ? base_unit_id : product.base_unit_id
     });
 
-    res.json(product);
+    // Cargar el producto actualizado con sus relaciones
+    const updatedProduct = await Product.findByPk(id, {
+      include: [
+        {
+          model: Unit,
+          as: 'baseUnit',
+          attributes: ['id', 'name', 'abbreviation', 'type']
+        },
+        {
+          model: ProductUnit,
+          as: 'ProductUnits',
+          include: [
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'name', 'abbreviation', 'type']
+            }
+          ]
+        }
+      ]
+    });
+
+    res.json(updatedProduct);
   } catch (error) {
     res.status(500).json({ 
       message: 'Error updating product', 
@@ -281,6 +411,13 @@ export const getLowStockProducts = async (req, res) => {
         stock: { [Op.lte]: parseInt(threshold) },
         active: true
       },
+      include: [
+        {
+          model: Unit,
+          as: 'baseUnit',
+          attributes: ['id', 'name', 'abbreviation', 'type']
+        }
+      ],
       order: [['stock', 'ASC']]
     });
 

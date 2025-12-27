@@ -2,6 +2,8 @@ import Invoice from '../../models/Invoice.js';
 import InvoiceDetail from '../../models/InvoiceDetail.js';
 import Customer from '../../models/Customer.js';
 import Product from '../../models/Product.js';
+import ProductUnit from '../../models/ProductUnit.js';
+import Unit from '../../models/Unit.js';
 import { Op } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -42,7 +44,14 @@ export const getInvoices = async (req, res) => {
         {
           model: InvoiceDetail,
           as: 'details',
-          attributes: ['id', 'product_name', 'quantity', 'unit_price', 'subtotal']
+          attributes: ['id', 'product_name', 'quantity', 'unit_name', 'unit_price', 'subtotal'],
+          include: [
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'abbreviation', 'name']
+            }
+          ]
         }
       ],
       limit: parseInt(limit),
@@ -93,6 +102,11 @@ export const getInvoiceById = async (req, res) => {
               model: Product,
               as: 'product',
               attributes: ['id', 'name', 'stock']
+            },
+            {
+              model: Unit,
+              as: 'unit',
+              attributes: ['id', 'abbreviation', 'name']
             }
           ]
         }
@@ -154,35 +168,58 @@ export const createInvoice = async (req, res) => {
     const invoiceDetails = [];
 
     for (const detail of details) {
-      const product = await Product.findByPk(detail.product_id);
-      
+      const { product_id, unit_id, quantity, price } = detail;
+
+      const product = await Product.findByPk(product_id);
       if (!product) {
         await transaction.rollback();
         return res.status(404).json({ 
-          message: `Product with id ${detail.product_id} not found` 
+          message: `Product with id ${product_id} not found` 
         });
       }
 
-      if (product.stock < detail.quantity) {
+      // Buscar configuración de unidad
+      const productUnit = await ProductUnit.findOne({
+        where: { product_id, unit_id },
+        include: [{ model: Unit, as: 'unit' }]
+      });
+
+      if (!productUnit) {
         await transaction.rollback();
         return res.status(400).json({ 
-          message: `Insufficient stock for product ${product.name}. Available: ${product.stock}` 
+          message: `Unit not configured for product ${product.name}` 
         });
       }
 
-      const detailSubtotal = parseFloat(product.pvp) * parseInt(detail.quantity);
+      // Convertir a unidad base
+      const quantityInBaseUnit = productUnit.toBaseUnit(quantity);
+
+      // Verificar stock (el stock está en unidad base)
+      if (product.stock < quantityInBaseUnit) {
+        await transaction.rollback();
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock} ${productUnit.unit.abbreviation}, Required: ${quantityInBaseUnit}` 
+        });
+      }
+
+      const unitPrice = price || product.pvp;
+      const detailSubtotal = parseFloat(unitPrice) * parseFloat(quantity);
       subtotal += detailSubtotal;
 
       invoiceDetails.push({
         product_id: product.id,
         product_name: detail.product_name || product.name,
-        quantity: detail.quantity,
-        unit_price: product.pvp,
+        unit_id: unit_id,
+        unit_name: productUnit.unit.abbreviation,
+        quantity: quantity,
+        quantity_base_unit: quantityInBaseUnit,
+        unit_price: unitPrice,
         subtotal: detailSubtotal
       });
 
+      // Descontar stock en unidad base
       await product.update(
-        { stock: product.stock - detail.quantity },
+        { stock: parseFloat(product.stock) - parseFloat(quantityInBaseUnit) },
         { transaction }
       );
     }
@@ -220,7 +257,13 @@ export const createInvoice = async (req, res) => {
         },
         {
           model: InvoiceDetail,
-          as: 'details'
+          as: 'details',
+          include: [
+            {
+              model: Unit,
+              as: 'unit'
+            }
+          ]
         }
       ]
     });
@@ -308,8 +351,9 @@ export const deleteInvoice = async (req, res) => {
     for (const detail of invoice.details) {
       const product = await Product.findByPk(detail.product_id);
       if (product) {
+        const quantityToRestore = detail.quantity_base_unit || detail.quantity;
         await product.update(
-          { stock: product.stock + detail.quantity },
+          { stock: parseFloat(product.stock) + parseFloat(quantityToRestore) },
           { transaction }
         );
       }
@@ -373,7 +417,13 @@ export const getInvoicesByCustomer = async (req, res) => {
       include: [
         {
           model: InvoiceDetail,
-          as: 'details'
+          as: 'details',
+          include: [
+            {
+              model: Unit,
+              as: 'unit'
+            }
+          ]
         }
       ],
       order: [['invoice_date', 'DESC']]

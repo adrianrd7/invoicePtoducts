@@ -52,4 +52,16 @@ Product.associate = (models) => {
   });
 };
 
+Product.associate = (models) => {
+  Product.belongsTo(models.Unit, {
+    foreignKey: 'base_unit_id',
+    as: 'baseUnit'
+  });
+  
+  Product.hasMany(models.ProductUnit, {
+    foreignKey: 'product_id',
+    as: 'ProductUnits'
+  });
+};
+
 export default Product;

@@ -8,6 +8,7 @@ import InvoiceDetail from './InvoiceDetail.js';
 import Unit from './Unit.js';
 import ProductUnit from './ProductUnit.js';
 import Promotion from './Promotion.js';
+import AuditLog from './AuditLog.js';
 
 const models = {
   Role,
@@ -19,7 +20,8 @@ const models = {
   InvoiceDetail,
   Unit,
   ProductUnit,
-  Promotion
+  Promotion,
+  AuditLog
 };
 
 Object.keys(models).forEach((modelName) => {
@@ -38,7 +40,8 @@ export {
   InvoiceDetail,
   Unit,           
   ProductUnit,
-  Promotion     
+  Promotion,
+  AuditLog     
 };
 
 export default models;

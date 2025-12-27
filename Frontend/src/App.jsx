@@ -27,6 +27,7 @@ import EditUser from './pages/User/EditUser';
 import UnitList from './pages/Units/UnitList';
 import ProductUnits from './pages/ProductUnit/ProductUnits';
 import Promotions from './pages/Promotion/Promotions';
+import AuditLogList from './pages/AuditLog/AuditLogList';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -89,6 +90,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/audit-logs"  element={
+            <ProtectedRoute>
+              <Layout>
+                <AuditLogList />
+              </Layout>
+            </ProtectedRoute>
+          } />
 
            <Route
           path="/newProduct"

@@ -1,7 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import swaggerUi from 'swagger-ui-express';
-import swaggerDocument from './docs/swagger.json' assert { type: 'json' };
 
 import models from '../models/indexModels.js'; 
 
@@ -13,6 +11,8 @@ import invoiceRoutes from './routes/invoiceRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import unitRoutes from './routes/unitRoutes.js';
 import productUnitRoute from './routes/productUnitRoute.js';
+import auditRoutes from './routes/auditRoutes.js';
+
 
 const app = express();
 
@@ -27,9 +27,8 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/units', unitRoutes);
 app.use('/api/product-units', productUnitRoute); 
+app.use('/api/audit', auditRoutes);
 
-
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 async function syncDatabase() {
   try {
@@ -46,6 +45,8 @@ async function syncDatabase() {
     
     await models.InvoiceDetail.sync({ alter: true });
 
+    await models.AuditLog.sync({ alter: true });
+    
     await models.Pro
     
     console.log('🟢 Database synced');

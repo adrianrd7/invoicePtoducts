@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Table,
   Button,
@@ -11,17 +11,18 @@ import {
   Col,
   Statistic,
   Modal,
-  Switch
-} from 'antd';
+  Switch,
+} from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import productService from '../../services/productService';
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import productService from "../../services/productService";
+import { PlusCircleOutlined } from "@ant-design/icons";
 
 const { Search } = Input;
 
@@ -32,10 +33,17 @@ const ProductList = () => {
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
-    total: 0
+    total: 0,
   });
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [stats, setStats] = useState(null);
+  const [stockModal, setStockModal] = useState({
+    visible: false,
+    productId: null,
+    productName: "",
+    currentStock: 0,
+    quantity: 0,
+  });
 
   useEffect(() => {
     loadProducts();
@@ -48,17 +56,17 @@ const ProductList = () => {
       const data = await productService.getProducts({
         page,
         limit,
-        search: searchText
+        search: searchText,
       });
 
       setProducts(data.data || []);
       setPagination({
         current: data.pagination.current_page,
         pageSize: data.pagination.per_page,
-        total: data.pagination.total
+        total: data.pagination.total,
       });
     } catch (error) {
-      message.error('Error al cargar productos');
+      message.error("Error al cargar productos");
       console.error(error);
     } finally {
       setLoading(false);
@@ -70,7 +78,7 @@ const ProductList = () => {
       const data = await productService.getProductStats();
       setStats(data);
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
+      console.error("Error al cargar estadísticas:", error);
     }
   };
 
@@ -80,74 +88,126 @@ const ProductList = () => {
 
   const handleDelete = async (id) => {
     Modal.confirm({
-      title: '¿Estás seguro de eliminar este producto?',
+      title: "¿Estás seguro de eliminar este producto?",
       icon: <ExclamationCircleOutlined />,
-      content: 'Esta acción no se puede deshacer',
-      okText: 'Sí, eliminar',
-      okType: 'danger',
-      cancelText: 'Cancelar',
+      content: "Esta acción no se puede deshacer",
+      okText: "Sí, eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
       onOk: async () => {
         try {
           await productService.deleteProduct(id);
-          message.success('Producto eliminado correctamente');
+          message.success("Producto eliminado correctamente");
           loadProducts(pagination.current, pagination.pageSize);
           loadStats();
         } catch (error) {
-          message.error(error.response?.data?.message || 'Error al eliminar producto');
+          message.error(
+            error.response?.data?.message || "Error al eliminar producto"
+          );
         }
-      }
+      },
     });
   };
 
   const handleToggleStatus = async (id) => {
     try {
       await productService.toggleProductStatus(id);
-      message.success('Estado actualizado correctamente');
+      message.success("Estado actualizado correctamente");
       loadProducts(pagination.current, pagination.pageSize);
       loadStats();
     } catch (error) {
-      message.error('Error al actualizar estado');
+      message.error("Error al actualizar estado");
+    }
+  };
+
+  const showStockModal = (record) => {
+    setStockModal({
+      visible: true,
+      productId: record.id,
+      productName: record.name,
+      currentStock: record.stock,
+      quantity: 0,
+    });
+  };
+
+  const handleAddStock = async () => {
+    if (stockModal.quantity <= 0) {
+      message.warning("La cantidad debe ser mayor a 0");
+      return;
+    }
+
+    try {
+      await productService.updateStock(stockModal.productId, 
+        stockModal.quantity,
+         "add",
+      );
+
+      message.success(`Se agregaron ${stockModal.quantity} unidades al stock`);
+      setStockModal({
+        visible: false,
+        productId: null,
+        productName: "",
+        currentStock: 0,
+        quantity: 0,
+      });
+      loadProducts(pagination.current, pagination.pageSize);
+      loadStats();
+    } catch (error) {
+      message.error(
+        error.response?.data?.message || "Error al actualizar stock"
+      );
     }
   };
 
   const columns = [
     {
-      title: 'Nombre',
-      dataIndex: 'name',
-      key: 'name',
-      fixed: 'left',
+      title: "Nombre",
+      dataIndex: "name",
+      key: "name",
+      fixed: "left",
       width: 250,
-      render: (text) => <strong>{text}</strong>
+      render: (text) => <strong>{text}</strong>,
     },
     {
-      title: 'Precio (PVP)',
-      dataIndex: 'pvp',
-      key: 'pvp',
+      title: "Precio (PVP)",
+      dataIndex: "pvp",
+      key: "pvp",
       width: 120,
-      render: (price) => `$${parseFloat(price).toFixed(2)}`
+      render: (price) => `$${parseFloat(price).toFixed(2)}`,
     },
     {
-      title: 'Peso (kg)',
-      dataIndex: 'weight',
-      key: 'weight',
+      title: "Peso (kg)",
+      dataIndex: "weight",
+      key: "weight",
       width: 100,
-      render: (weight) => weight ? `${parseFloat(weight).toFixed(2)} kg` : 'N/A'
+      render: (weight) =>
+        weight ? `${parseFloat(weight).toFixed(2)} kg` : "N/A",
     },
     {
-      title: 'Stock',
-      dataIndex: 'stock',
-      key: 'stock',
-      width: 100,
-      render: (stock) => (
-        <Tag color={stock === 0 ? 'red' : stock < 10 ? 'orange' : 'green'}>
-          {stock}
-        </Tag>
-      )
+      title: "Stock",
+      dataIndex: "stock",
+      key: "stock",
+      width: 150,
+      render: (stock, record) => (
+        <Space>
+          <Tag color={stock === 0 ? "red" : stock < 10 ? "orange" : "green"}>
+            {stock}
+          </Tag>
+          <Button
+            icon={<PlusCircleOutlined />}
+            size="small"
+            type="dashed"
+            onClick={() => showStockModal(record)}
+          >
+            Añadir
+          </Button>
+        </Space>
+      ),
     },
     {
-      title: 'Estado',
-      dataIndex: 'active',
-      key: 'active',
+      title: "Estado",
+      dataIndex: "active",
+      key: "active",
       width: 120,
       render: (active, record) => (
         <Switch
@@ -156,12 +216,12 @@ const ProductList = () => {
           checkedChildren="Activo"
           unCheckedChildren="Inactivo"
         />
-      )
+      ),
     },
     {
-      title: 'Acciones',
-      key: 'actions',
-      fixed: 'right',
+      title: "Acciones",
+      key: "actions",
+      fixed: "right",
       width: 120,
       render: (_, record) => (
         <Space>
@@ -178,22 +238,22 @@ const ProductList = () => {
             onClick={() => handleDelete(record.id)}
           />
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: "24px" }}>
       <h1>Gestión de Productos</h1>
 
       {stats && (
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
+        <Row gutter={16} style={{ marginBottom: "24px" }}>
           <Col span={6}>
             <Card>
               <Statistic
                 title="Total Productos"
                 value={stats.total}
-                prefix={<span style={{ fontSize: '16px' }}>📦</span>}
+                prefix={<span style={{ fontSize: "16px" }}>📦</span>}
               />
             </Card>
           </Col>
@@ -202,7 +262,7 @@ const ProductList = () => {
               <Statistic
                 title="Activos"
                 value={stats.active}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: "#52c41a" }}
               />
             </Card>
           </Col>
@@ -211,7 +271,7 @@ const ProductList = () => {
               <Statistic
                 title="Stock Bajo"
                 value={stats.low_stock}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: "#faad14" }}
               />
             </Card>
           </Col>
@@ -220,14 +280,14 @@ const ProductList = () => {
               <Statistic
                 title="Sin Stock"
                 value={stats.out_of_stock}
-                valueStyle={{ color: '#ff4d4f' }}
+                valueStyle={{ color: "#ff4d4f" }}
               />
             </Card>
           </Col>
         </Row>
       )}
 
-      <Card style={{ marginBottom: '16px' }}>
+      <Card style={{ marginBottom: "16px" }}>
         <Row gutter={16} align="middle">
           <Col span={12}>
             <Search
@@ -237,16 +297,16 @@ const ProductList = () => {
               size="large"
               onSearch={(value) => setSearchText(value)}
               onChange={(e) => {
-                if (!e.target.value) setSearchText('');
+                if (!e.target.value) setSearchText("");
               }}
             />
           </Col>
-          <Col span={12} style={{ textAlign: 'right' }}>
+          <Col span={12} style={{ textAlign: "right" }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               size="large"
-              onClick={() => navigate('/newProduct')}
+              onClick={() => navigate("/newProduct")}
             >
               Nuevo Producto
             </Button>
@@ -264,6 +324,54 @@ const ProductList = () => {
           scroll={{ x: 1000 }}
         />
       </Card>
+      <Modal
+        title={`Añadir Stock - ${stockModal.productName}`}
+        open={stockModal.visible}
+        onOk={handleAddStock}
+        onCancel={() =>
+          setStockModal({
+            visible: false,
+            productId: null,
+            productName: "",
+            currentStock: 0,
+            quantity: 0,
+          })
+        }
+        okText="Añadir"
+        cancelText="Cancelar"
+      >
+        <Space direction="vertical" style={{ width: "100%" }} size="large">
+          <div>
+            <p>
+              <strong>Stock actual:</strong> {stockModal.currentStock}
+            </p>
+          </div>
+          <div>
+            <p>
+              <strong>Cantidad a añadir:</strong>
+            </p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="Ingrese cantidad"
+              value={stockModal.quantity}
+              onChange={(e) =>
+                setStockModal({
+                  ...stockModal,
+                  quantity: parseInt(e.target.value) || 0,
+                })
+              }
+              size="large"
+            />
+          </div>
+          <div>
+            <p>
+              <strong>Nuevo stock:</strong>{" "}
+              {stockModal.currentStock + stockModal.quantity}
+            </p>
+          </div>
+        </Space>
+      </Modal>
     </div>
   );
 };

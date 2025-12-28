@@ -6,7 +6,7 @@ import {
   updateStock,
   getLowStock
 } from '../controllers/rawMaterialController.js';
-import { authenticate, checkPermission } from '../middlewares/authMiddleware.js';
+import { authenticate, checkPermission } from '../middleware/permissions.js';
 
 const router = express.Router();
 

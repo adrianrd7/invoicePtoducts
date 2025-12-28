@@ -1,7 +1,7 @@
-import Production from '../models/Production.js';
-import Product from '../models/Product.js';
-import ProductRecipe from '../models/ProductRecipe.js';
-import RawMaterial from '../models/RawMaterial.js';
+import Production from '../../models/Production.js';
+import Product from '../../models/Product.js';
+import ProductRecipe from '../../models/ProductRecipe.js';
+import RawMaterial from '../../models/RawMaterial.js';
 import sequelize from '../config/database.js';
 import { createAuditLog } from '../utils/auditHelper.js';
 

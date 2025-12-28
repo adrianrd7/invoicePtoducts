@@ -40,25 +40,24 @@ async function syncDatabase() {
     await models.Permission.sync({ alter: true });
     await models.User.sync({ alter: true });
     await models.Customer.sync({ alter: true });
-
+    
     await models.Unit.sync({ alter: true });
-
+    
     await models.Product.sync({ alter: true });
     await models.ProductUnit.sync({ alter: true });
-    await models.Invoice.sync({ alter: true });
-
-    await models.InvoiceDetail.sync({ alter: true });
-
-    await models.AuditLog.sync({ alter: true });
-    await models.Production.sync({ alter: true });
-    await models.ProductRecipe.sync({ alter: true });
+    
+    // IMPORTANTE: RawMaterial debe ir ANTES de ProductRecipe
     await models.RawMaterial.sync({ alter: true });
-
-    await models.Pro;
-
-    console.log("🟢 Database synced");
+    await models.ProductRecipe.sync({ alter: true });
+    await models.Production.sync({ alter: true });
+    
+    await models.Invoice.sync({ alter: true });
+    await models.InvoiceDetail.sync({ alter: true });
+    await models.AuditLog.sync({ alter: true });
+    
+    console.log('🟢 Database synced');
   } catch (err) {
-    console.error("❌ Database connection error:", err);
+    console.error('❌ Database connection error:', err);
     process.exit(1);
   }
 }

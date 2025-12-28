@@ -4,7 +4,7 @@ import {
   createOrUpdateRecipe,
   deleteRecipeIngredient
 } from '../controllers/recipeController.js';
-import { authenticate, checkPermission } from '../middlewares/authMiddleware.js';
+import { authenticate, checkPermission } from '../middleware/permissions.js';
 
 const router = express.Router();
 

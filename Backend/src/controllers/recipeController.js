@@ -1,5 +1,5 @@
-import ProductRecipe from '../models/ProductRecipe.js';
-import RawMaterial from '../models/RawMaterial.js';
+import ProductRecipe from '../../models/Product.js';
+import RawMaterial from '../../models/RawMaterial.js';
 
 export const getProductRecipe = async (req, res) => {
   try {

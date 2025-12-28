@@ -4,6 +4,7 @@ import ProductRecipe from '../../models/ProductRecipe.js';
 import RawMaterial from '../../models/RawMaterial.js';
 import sequelize from '../config/database.js';
 import { createAuditLog } from '../utils/auditHelper.js';
+import User from '../../models/User.js';
 
 export const createProduction = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -26,32 +27,7 @@ export const createProduction = async (req, res) => {
     }
 
     const yieldQuantity = recipes[0].yield_quantity;
-    const batchesNeeded = Math.ceil(produced_quantity / yieldQuantity);
-
-    // Verificar stock de materias primas
-    for (const recipe of recipes) {
-      const required = parseFloat(recipe.quantity) * batchesNeeded;
-      const available = parseFloat(recipe.rawMaterial.stock);
-
-      if (available < required) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message: `Insufficient stock for ${recipe.rawMaterial.name}. Required: ${required}, Available: ${available}`
-        });
-      }
-    }
-
-    // Descontar materias primas
-    for (const recipe of recipes) {
-      const required = parseFloat(recipe.quantity) * batchesNeeded;
-      const newStock = parseFloat(recipe.rawMaterial.stock) - required;
-
-      await RawMaterial.update(
-        { stock: newStock },
-        { where: { id: recipe.raw_material_id }, transaction }
-      );
-    }
-
+    
     // Agregar al stock del producto
     const product = await Product.findByPk(product_id);
     await product.update(
@@ -62,8 +38,8 @@ export const createProduction = async (req, res) => {
     // Registrar producción
     const production = await Production.create({
       product_id,
-      expected_quantity: batchesNeeded * yieldQuantity,
-      produced_quantity,
+      expected_quantity: yieldQuantity, 
+      produced_quantity, 
       user_id: req.user?.id,
       notes,
       status: 'completed'
@@ -71,7 +47,6 @@ export const createProduction = async (req, res) => {
 
     await transaction.commit();
 
-    // Auditoría
     await createAuditLog({
       entityType: 'Production',
       entityId: production.id,

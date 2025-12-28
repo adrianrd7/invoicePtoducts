@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Form,
@@ -13,12 +13,12 @@ import {
   Statistic,
   Row,
   Col,
-  Divider
-} from 'antd';
-import { useNavigate } from 'react-router-dom';
-import productionService from '../../services/productionService';
-import productService from '../../services/productService';
-import recipeService from '../../services/recipeService';
+  Divider,
+} from "antd";
+import { useNavigate } from "react-router-dom";
+import productionService from "../../services/productionService";
+import productService from "../../services/productService";
+import recipeService from "../../services/recipeService";
 
 const { TextArea } = Input;
 
@@ -40,7 +40,7 @@ const ProductionCreate = () => {
       const data = await productService.getProducts({ limit: 1000 });
       setProducts(data.data || []);
     } catch (error) {
-      message.error('Error al cargar productos');
+      message.error("Error al cargar productos");
     }
   };
 
@@ -50,18 +50,20 @@ const ProductionCreate = () => {
       setSelectedProduct(productData);
 
       const recipeData = await recipeService.getProductRecipe(productId);
-      
+
       if (!recipeData.recipes || recipeData.recipes.length === 0) {
-        message.warning('Este producto no tiene una receta definida');
+        message.warning("Este producto no tiene una receta definida");
         setRecipe(null);
         return;
       }
 
       setRecipe(recipeData);
-      form.setFieldsValue({ produced_quantity: recipeData.yield_quantity || 1 });
+      form.setFieldsValue({
+        produced_quantity: recipeData.yield_quantity || 1,
+      });
       setProducedQuantity(recipeData.yield_quantity || 1);
     } catch (error) {
-      message.error('Error al cargar información del producto');
+      message.error("Error al cargar información del producto");
     }
   };
 
@@ -71,12 +73,14 @@ const ProductionCreate = () => {
       await productionService.createProduction({
         product_id: values.product_id,
         produced_quantity: values.produced_quantity,
-        notes: values.notes
+        notes: values.notes,
       });
-      message.success('Producción registrada correctamente');
-      navigate('/productions');
+      message.success("Producción registrada correctamente");
+      navigate("/productions");
     } catch (error) {
-      message.error(error.response?.data?.message || 'Error al registrar producción');
+      message.error(
+        error.response?.data?.message || "Error al registrar producción"
+      );
     } finally {
       setLoading(false);
     }
@@ -99,70 +103,44 @@ const ProductionCreate = () => {
 
   const columns = [
     {
-      title: 'Ingrediente',
-      key: 'ingredient',
-      render: (_, record) => (
-        <strong>{record.rawMaterial?.name}</strong>
-      )
+      title: "Ingrediente",
+      key: "ingredient",
+      render: (_, record) => <strong>{record.rawMaterial?.name}</strong>,
     },
     {
-      title: 'Por Lote',
-      key: 'per_batch',
+      title: "Cantidad",
+      key: "quantity",
       render: (_, record) =>
-        `${parseFloat(record.quantity).toFixed(2)} ${record.rawMaterial?.unit_of_measure}`
+        `${parseFloat(record.quantity).toFixed(2)} ${
+          record.rawMaterial?.unit_of_measure
+        }`,
     },
     {
-      title: 'Necesario',
-      key: 'required',
+      title: "Costo",
+      key: "cost",
       render: (_, record) => {
-        const required = getRequiredQuantity(record.quantity);
-        return `${required.toFixed(2)} ${record.rawMaterial?.unit_of_measure}`;
-      }
+        const cost =
+          parseFloat(record.quantity) *
+          parseFloat(record.rawMaterial?.cost_per_unit || 0);
+        return `$${cost.toFixed(2)}`;
+      },
     },
-    {
-      title: 'Disponible',
-      key: 'available',
-      render: (_, record) => {
-        const available = parseFloat(record.rawMaterial?.stock || 0);
-        const sufficient = checkSufficientStock(record);
-        return (
-          <span style={{ color: sufficient ? 'green' : 'red' }}>
-            {available.toFixed(2)} {record.rawMaterial?.unit_of_measure}
-          </span>
-        );
-      }
-    },
-    {
-      title: 'Estado',
-      key: 'status',
-      render: (_, record) => {
-        const sufficient = checkSufficientStock(record);
-        return sufficient ? '✅ Suficiente' : '❌ Insuficiente';
-      }
-    }
   ];
 
-  const allIngredientsAvailable = recipe?.recipes?.every(checkSufficientStock) || false;
+  const allIngredientsAvailable =
+    recipe?.recipes?.every(checkSufficientStock) || false;
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
       <Card
         title="Nueva Producción"
-        extra={
-          <Button onClick={() => navigate('/productions')}>
-            Volver
-          </Button>
-        }
+        extra={<Button onClick={() => navigate("/productions")}>Volver</Button>}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="product_id"
             label="Producto a Producir"
-            rules={[{ required: true, message: 'Seleccione un producto' }]}
+            rules={[{ required: true, message: "Seleccione un producto" }]}
           >
             <Select
               showSearch
@@ -183,7 +161,7 @@ const ProductionCreate = () => {
 
           {recipe && (
             <>
-              <Row gutter={16} style={{ marginBottom: '24px' }}>
+              <Row gutter={16} style={{ marginBottom: "24px" }}>
                 <Col span={8}>
                   <Card>
                     <Statistic
@@ -193,20 +171,31 @@ const ProductionCreate = () => {
                     />
                   </Card>
                 </Col>
-                <Col span={8}>
-                  <Card>
-                    <Statistic
-                      title="Lotes Necesarios"
-                      value={getBatchesNeeded()}
-                      suffix="lotes"
-                    />
-                  </Card>
-                </Col>
+                <Row gutter={16} style={{ marginBottom: "24px" }}>
+                  <Col span={12}>
+                    <Card>
+                      <Statistic
+                        title="Cantidad Esperada (según receta)"
+                        value={recipe.yield_quantity}
+                        suffix="unidades"
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card>
+                      <Statistic
+                        title="Costo de Receta"
+                        value={recipe.total_cost?.toFixed(2) || "0.00"}
+                        prefix="$"
+                      />
+                    </Card>
+                  </Col>
+                </Row>
                 <Col span={8}>
                   <Card>
                     <Statistic
                       title="Costo Total"
-                      value={recipe.total_cost?.toFixed(2) || '0.00'}
+                      value={recipe.total_cost?.toFixed(2) || "0.00"}
                       prefix="$"
                     />
                   </Card>
@@ -215,18 +204,20 @@ const ProductionCreate = () => {
 
               <Form.Item
                 name="produced_quantity"
-                label="Cantidad a Producir"
-                rules={[{ required: true, message: 'Ingrese la cantidad' }]}
+                label="Cantidad Producida"
+                rules={[
+                  { required: true, message: "Ingrese la cantidad producida" },
+                ]}
               >
                 <InputNumber
                   min={1}
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                   onChange={(val) => setProducedQuantity(val)}
                   placeholder="Cantidad de productos"
                 />
               </Form.Item>
 
-              <Divider>Materias Primas Necesarias</Divider>
+              <Divider>Ingredientes de la Receta</Divider>
 
               {!allIngredientsAvailable && (
                 <Alert
@@ -234,7 +225,7 @@ const ProductionCreate = () => {
                   description="No hay suficiente stock de algunas materias primas para esta producción"
                   type="error"
                   showIcon
-                  style={{ marginBottom: '16px' }}
+                  style={{ marginBottom: "16px" }}
                 />
               )}
 
@@ -243,7 +234,7 @@ const ProductionCreate = () => {
                 dataSource={recipe.recipes}
                 rowKey="id"
                 pagination={false}
-                style={{ marginBottom: '24px' }}
+                style={{ marginBottom: "24px" }}
               />
 
               <Form.Item name="notes" label="Notas (Opcional)">
@@ -260,7 +251,7 @@ const ProductionCreate = () => {
                   loading={loading}
                   block
                   size="large"
-                  disabled={!allIngredientsAvailable}
+                  // ELIMINAR: disabled={!allIngredientsAvailable}
                 >
                   Registrar Producción
                 </Button>

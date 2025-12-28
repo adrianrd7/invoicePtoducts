@@ -152,7 +152,6 @@ const NewInvoice = () => {
     return units.find(u => u.id === unitId);
   };
 
-  // ← ACTUALIZADO: Ahora también verifica la unidad
   const getActivePromotion = (productId, unitId) => {
     return promotions.find(p => 
       p.product_id === productId && 
@@ -161,7 +160,6 @@ const NewInvoice = () => {
     );
   };
 
-  // ← ACTUALIZADO: Ahora recibe unitId
   const calculatePromotionBenefit = (productId, unitId, quantity, unitPrice) => {
     const promotion = getActivePromotion(productId, unitId);
     
@@ -230,10 +228,9 @@ const NewInvoice = () => {
       const conversionQuantity = newDetails[existingIndex].conversion_quantity || 1;
       const quantityInBaseUnit = newQuantity * conversionQuantity;
       
-      // 🎁 Aplicar promoción con unitId
       const promotionBenefit = calculatePromotionBenefit(
         productId, 
-        newDetails[existingIndex].unit_id, // ← AGREGADO
+        newDetails[existingIndex].unit_id, 
         newQuantity, 
         newDetails[existingIndex].unit_price
       );
@@ -259,10 +256,9 @@ const NewInvoice = () => {
       const unitPrice = parseFloat(product.pvp);
       const taxAmount = applyTax ? unitPrice * TAX_RATE : 0;
       
-      // 🎁 Aplicar promoción con unitId
       const promotionBenefit = calculatePromotionBenefit(
         productId, 
-        defaultUnitId, // ← AGREGADO
+        defaultUnitId, 
         quantity, 
         unitPrice
       );
@@ -316,10 +312,9 @@ const NewInvoice = () => {
         const conversionQuantity = detail.conversion_quantity || 1;
         const quantityInBaseUnit = newQuantity * conversionQuantity;
         
-        // 🎁 Recalcular promoción con unitId
         const promotionBenefit = calculatePromotionBenefit(
           detail.product_id, 
-          detail.unit_id, // ← AGREGADO
+          detail.unit_id, 
           newQuantity, 
           detail.unit_price
         );
@@ -375,10 +370,9 @@ const NewInvoice = () => {
         const newTaxPerUnit = applyTax ? newUnitPrice * TAX_RATE : 0;
         const quantityInBaseUnit = detail.quantity * conversionQuantity;
         
-        // 🎁 Recalcular promoción con nuevo unitId y precio
         const promotionBenefit = calculatePromotionBenefit(
           detail.product_id, 
-          newUnitId, // ← ACTUALIZADO: ahora usa el nuevo unitId
+          newUnitId, 
           detail.quantity, 
           newUnitPrice
         );
@@ -439,10 +433,9 @@ const NewInvoice = () => {
       if (detail.key === key) {
         const newTaxPerUnit = applyTax ? newPrice * TAX_RATE : 0;
         
-        // 🎁 Recalcular promoción con nuevo precio y unitId
         const promotionBenefit = calculatePromotionBenefit(
           detail.product_id, 
-          detail.unit_id, // ← AGREGADO
+          detail.unit_id, 
           detail.quantity, 
           newPrice
         );
@@ -502,7 +495,6 @@ const NewInvoice = () => {
       return sum + detail.item_discount;
     }, 0);
     
-    // 🎁 Sumar descuentos de promociones
     const totalPromotionDiscounts = invoiceDetails.reduce((sum, detail) => {
       return sum + (detail.promotion_discount || 0);
     }, 0);

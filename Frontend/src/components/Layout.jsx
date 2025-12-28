@@ -14,6 +14,8 @@ import {
   Moon,
   ShieldCheck,
   Ruler,
+  Box,
+  FactorY,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -41,10 +43,21 @@ const Layout = ({ children }) => {
     },
     { path: "/units", label: "Unidades", icon: Ruler, module: "units" },
     {
-      key: "product-units",
-      icon: Ruler,
-      label: "Unidades de Producto",
       path: "/product-units",
+      label: "Unidades de Producto",
+      icon: Ruler,
+    },
+    {
+      path: "/raw-materials",
+      label: "Materias Primas",
+      icon: Box,
+      module: "raw_materials",
+    },
+    {
+      path: "/productions",
+      label: "Producción",
+      icon: Factory,
+      module: "production",
     },
     {
       path: "/promotions",

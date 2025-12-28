@@ -137,9 +137,10 @@ const ProductList = () => {
     }
 
     try {
-      await productService.updateStock(stockModal.productId, 
+      await productService.updateStock(
+        stockModal.productId,
         stockModal.quantity,
-         "add",
+        "add"
       );
 
       message.success(`Se agregaron ${stockModal.quantity} unidades al stock`);
@@ -222,7 +223,7 @@ const ProductList = () => {
       title: "Acciones",
       key: "actions",
       fixed: "right",
-      width: 120,
+      width: 150, 
       render: (_, record) => (
         <Space>
           <Button
@@ -230,6 +231,13 @@ const ProductList = () => {
             size="small"
             type="primary"
             onClick={() => navigate(`/editProduct/${record.id}`)}
+          />
+          <Button
+            icon={<CoffeeIcon size={16} />}
+            size="small"
+            type="default"
+            onClick={() => navigate(`/products/${record.id}/recipe`)}
+            title="Gestionar receta"
           />
           <Button
             icon={<DeleteOutlined />}
